@@ -1,0 +1,18 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+
+  # Allow manual runs from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Render app
+        run: |
+          curl -fsS https://wtt-schedule.onrender.com/ > /dev/null
