@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 import pandas as pd
 import streamlit as st
 import json
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from streamlit_autorefresh import st_autorefresh
 
 
@@ -156,6 +155,20 @@ def _contains_wang_sun_pair(lines: list[str]) -> bool:
     combined = " ".join(lines)
     return bool(WANG_RE.search(combined) and SUN_RE.search(combined))
 
+def render_los_angeles_clock():
+    la_now = datetime.now(
+        ZoneInfo("America/Los_Angeles")
+    )
+
+    st.markdown(
+        f"""
+        <div class="updated">
+            🇺🇸 Los Angeles time:
+            <b>{la_now:%A, %d/%m/%Y %H:%M:%S}</b>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def parse_schedule(body: str, source_timezone: str) -> pd.DataFrame:
     lines = _clean_lines(body)
@@ -384,7 +397,6 @@ def _matches_for_player(schedule: pd.DataFrame, category: str) -> pd.DataFrame:
         )
     ]
 
-
 def _render_match(match: pd.Series) -> None:
     matchup = match["Match"] or "Thông tin người chơi đang được cập nhật"
     round_label = _round_label(match["Details"])
@@ -396,6 +408,83 @@ def _render_match(match: pd.Series) -> None:
           <div class="match-date">{match['Date']}</div>
           <div class="match-players">{display_match}</div>
           <div class="match-time"><span>🇫🇮 {match['Helsinki']}</span><span>🇻🇳 {match['Vietnam']}</span><span>🇰🇷 {korea_time}</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def get_next_match_datetime(schedule: pd.DataFrame):
+    if schedule.empty:
+        return None
+
+    now = datetime.now(
+        ZoneInfo("America/Los_Angeles")
+    )
+
+    upcoming = []
+
+    for _, row in schedule.iterrows():
+        try:
+            date_value = datetime.strptime(
+                row["Date"],
+                "%d/%m/%Y",
+            )
+
+            time_value = row["Venue time"].split("·")[1].strip()
+            time_value = time_value.split()[0]
+
+            match_datetime = datetime.strptime(
+                f"{date_value:%d/%m/%Y} {time_value}",
+                "%d/%m/%Y %H:%M",
+            ).replace(
+                tzinfo=ZoneInfo("America/Los_Angeles")
+            )
+
+            if match_datetime >= now:
+                upcoming.append(match_datetime)
+
+        except Exception:
+            continue
+
+    if not upcoming:
+        return None
+
+    return min(upcoming)
+
+
+def render_countdown(target_datetime):
+    if target_datetime is None:
+        return
+
+    now = datetime.now(
+        ZoneInfo("America/Los_Angeles")
+    )
+
+    remaining = int(
+        (target_datetime - now).total_seconds()
+    )
+
+    if remaining <= 0:
+        message = "🏓 Match is starting now"
+
+    else:
+        days = remaining // 86400
+        hours = (remaining % 86400) // 3600
+        minutes = (remaining % 3600) // 60
+        seconds = remaining % 60
+
+        message = (
+            f"⏳ Next match starts in: "
+            f"<b>{days}d "
+            f"{hours:02d}h "
+            f"{minutes:02d}m "
+            f"{seconds:02d}s</b>"
+        )
+
+    st.markdown(
+        f"""
+        <div class="updated">
+            {message}
         </div>
         """,
         unsafe_allow_html=True,
@@ -481,8 +570,16 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.markdown('<div class="event-title">WTT US Smash 2026</div>', unsafe_allow_html=True)
-st_autorefresh(interval=12 * 60 * 60 * 1000, key="wtt-12-hour-refresh")
+st.markdown(
+    '<div class="event-title">WTT US Smash 2026</div>',
+    unsafe_allow_html=True,
+)
+
+st_autorefresh(
+    interval=1000,
+    key="clock-refresh",
+)
+
 url = DEFAULT_URL
 source_timezone = "America/Los_Angeles"
 
@@ -495,6 +592,9 @@ except Exception as error:
     st.stop()
 
 schedule = schedule[schedule["Category"].isin(["Men Singles", "Women Singles", "Mixed Doubles"])]
+render_los_angeles_clock()
+next_match = get_next_match_datetime(schedule)
+render_countdown(next_match)
 if schedule.empty:
     st.write("Rows scraped:", len(schedule))
     st.write(schedule.head(10))
