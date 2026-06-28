@@ -362,19 +362,82 @@ def _render_match(match: pd.Series) -> None:
         unsafe_allow_html=True,
     )
 
+st.set_page_config(
+    page_title="WTT US Smash 2026 - Lịch thi đấu",
+    page_icon="🏓",
+    layout="wide"
+)
 
-st.set_page_config(page_title="WTT US Smash 2026 - Lịch thi đấu", page_icon="🏓", layout="wide")
 st.markdown(
     """
     <style>
-    .block-container { max-width: 1500px; padding-top: 2.5rem; }
-    .event-title { border: 2px solid #202020; border-radius: 26px; padding: 1rem; text-align: center; font-size: 2rem; font-weight: 700; margin: 0 auto 2.5rem; max-width: 650px; }
-    .section-title { text-align: center; font-size: 1.35rem; font-weight: 700; margin-bottom: 1rem; }
-    .match-card { border: 1px solid #d9d9d9; border-radius: 14px; padding: .8rem; margin-bottom: .8rem; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-    .match-date { color: #666; font-size: .85rem; margin-bottom: .35rem; }
-    .match-players { font-weight: 650; line-height: 1.3; min-height: 2.6em; }
-    .match-time { display: flex; flex-direction: column; gap: .35rem; color: #333; font-size: 1.15rem; font-weight: 650; line-height: 1.35; margin-top: .8rem; }
-    .updated { text-align: center; color: #777; font-size: .85rem; margin-bottom: 1.5rem; }
+    .block-container {
+        max-width: 1500px;
+        padding-top: 2.5rem;
+    }
+
+    .event-title {
+        border: 2px solid var(--text-color);
+        color: var(--text-color);
+        border-radius: 26px;
+        padding: 1rem;
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0 auto 2.5rem;
+        max-width: 650px;
+    }
+
+    .section-title {
+        color: var(--text-color);
+        text-align: center;
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .match-card {
+        border: 1px solid var(--secondary-background-color);
+        border-radius: 14px;
+        padding: .8rem;
+        margin-bottom: .8rem;
+        background: var(--background-color);
+        color: var(--text-color);
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .match-players {
+        color: var(--text-color);
+        font-weight: 650;
+        line-height: 1.3;
+        min-height: 2.6em;
+    }
+
+    .match-date {
+        color: var(--text-color);
+        opacity: 0.65;
+        font-size: .85rem;
+        margin-bottom: .35rem;
+    }
+
+    .match-time {
+        color: var(--text-color);
+        display: flex;
+        flex-direction: column;
+        gap: .35rem;
+        font-size: 1.15rem;
+        font-weight: 650;
+        line-height: 1.35;
+        margin-top: .8rem;
+    }
+
+    .updated {
+        color: var(--text-color);
+        opacity: 0.65;
+        text-align: center;
+        font-size: .85rem;
+        margin-bottom: 1.5rem;
+    }
     </style>
     """,
     unsafe_allow_html=True,
