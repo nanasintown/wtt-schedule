@@ -274,7 +274,8 @@ def scrape_page(url: str) -> str:
 
         def capture_response(response):
             try:
-                if "api" in response.url.lower() or "event" in response.url.lower():
+                content_type = response.headers.get("content-type", "")
+                if "json" in content_type:
                     responses.append(response)
             except Exception:
                 pass
@@ -284,54 +285,92 @@ def scrape_page(url: str) -> str:
         try:
             page.goto(
                 url,
-                wait_until="networkidle",
+                wait_until="domcontentloaded",
                 timeout=60_000,
             )
 
-            page.wait_for_timeout(5000)
+            # Give React time to start
+            page.wait_for_timeout(3000)
 
-            # First try the rendered page
+            # Wait until WTT actually renders match content
+            try:
+                page.wait_for_function(
+                    """
+                    () => {
+                        const text = document.body.innerText;
+                        return (
+                            text.includes("Wang") ||
+                            text.includes("Sun") ||
+                            text.includes("Scheduled") ||
+                            text.includes("Matches")
+                        );
+                    }
+                    """,
+                    timeout=30000,
+                )
+            except PlaywrightTimeoutError:
+                pass
+
             body = page.locator("body").inner_text()
 
-            # Debug
-            if len(body) > 2000:
+            # Prefer rendered content if it contains real player data
+            if (
+                "Wang" in body
+                or "SUN" in body
+                or "Sun" in body
+            ):
                 return body
 
-            # Otherwise extract API JSON
+
+            # Otherwise try API responses
             for response in responses:
                 try:
-                    content_type = response.headers.get("content-type", "")
-                    if "json" not in content_type:
-                        continue
-
                     data = response.json()
+                    text = json.dumps(data)
 
-                    text = str(data)
-
-                    # WTT schedule API responses contain these fields
                     if (
                         "Wang" in text
                         or "Sun" in text
-                        or "scheduled" in text.lower()
-                        or "match" in text.lower()
+                        or "Chuqin" in text
+                        or "Yingsha" in text
                     ):
-                        return json.dumps(data)
+                        return text
 
                 except Exception:
                     continue
+
+            # Debug information
+            print("No WTT data found")
+            print("Body length:", len(body))
+            print(body[:500])
 
             return body
 
         finally:
             browser.close()
 
-@st.cache_data(ttl=2 * 60 * 60, show_spinner=False)
+@st.cache_data(
+    ttl=15 * 60,
+    show_spinner=False
+)
 def load_schedule(
-    url: str, source_timezone: str, cache_version: str = "korea-time-v2"
-) -> pd.DataFrame:
+    url: str,
+    source_timezone: str,
+    cache_version: str = "korea-time-v3",
+):
     del cache_version
-    return parse_schedule(scrape_page(url), source_timezone)
 
+    df = parse_schedule(
+        scrape_page(url),
+        source_timezone,
+    )
+
+    if df.empty:
+        raise RuntimeError(
+            "WTT returned no matches. Not caching empty result."
+        )
+
+    return df
 
 def _matches_for_player(schedule: pd.DataFrame, category: str) -> pd.DataFrame:
     matches = schedule[schedule["Category"] == category].copy()
