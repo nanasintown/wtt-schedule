@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: wtt-us-smash-schedule
+    runtime: docker
+    plan: free
+    healthCheckPath: /_stcore/health
